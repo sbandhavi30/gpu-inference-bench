@@ -3,6 +3,7 @@ package scaler
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -54,5 +55,13 @@ func (m *Metrics) BuildHTTPMux() *http.ServeMux {
 }
 
 func (m *Metrics) StartHTTPServer(port string) error {
-	return http.ListenAndServe(":"+port, m.BuildHTTPMux())
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           m.BuildHTTPMux(),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	return srv.ListenAndServe()
 }
