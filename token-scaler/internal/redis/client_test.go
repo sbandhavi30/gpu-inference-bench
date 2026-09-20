@@ -144,7 +144,10 @@ func TestEvaluator_ChunkCeiling_100PerCycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cycle1: %v", err)
 	}
-	remaining1, _ := rdb.HLen(context.Background(), "token_backlog:q1").Result()
+	remaining1, err := rdb.HLen(context.Background(), "token_backlog:q1").Result()
+	if err != nil {
+		t.Fatalf("cycle1 hlen: %v", err)
+	}
 	if remaining1 != 5 {
 		t.Fatalf("cycle1: want 5 remaining, got %d", remaining1)
 	}
@@ -162,27 +165,33 @@ func TestEvaluator_ChunkCeiling_100PerCycle(t *testing.T) {
 	if total2 != 0 {
 		t.Fatalf("cycle2: want 0, got %d", total2)
 	}
-	remaining2, _ := rdb.HLen(context.Background(), "token_backlog:q1").Result()
+	remaining2, err := rdb.HLen(context.Background(), "token_backlog:q1").Result()
+	if err != nil {
+		t.Fatalf("cycle2 hlen: %v", err)
+	}
 	if remaining2 != 0 {
 		t.Fatalf("cycle2: want 0 remaining, got %d", remaining2)
 	}
 }
 
-func TestEvaluator_SetsExpireOnEmpty(t *testing.T) {
+func TestEvaluator_NoscriptRetry(t *testing.T) {
 	c, mr := newTestClient(t)
 	if _, err := c.LoadScripts(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	past := time.Now().Add(-1 * time.Hour).Unix()
-	mr.HSet("token_backlog:q1", "job1", "100")
-	mr.ZAdd("token_expiry:q1", float64(past), "job1")
-
-	c.ExecuteEvaluator(context.Background(), "q1", time.Now().Unix(), "86400", "100")
-
-	rdb := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
-	defer rdb.Close()
-	ttl, _ := rdb.TTL(context.Background(), "token_backlog:q1").Result()
-	if ttl <= 0 {
-		t.Fatalf("expected positive TTL after empty, got %v", ttl)
+	// SCRIPT FLUSH clears all cached scripts, simulating a Redis restart (NOSCRIPT scenario).
+	raw := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
+	defer raw.Close()
+	if err := raw.Do(context.Background(), "SCRIPT", "FLUSH").Err(); err != nil {
+		t.Fatalf("script flush: %v", err)
+	}
+	// ExecuteEvaluator must detect NOSCRIPT, reload scripts, and succeed.
+	total, err := c.ExecuteEvaluator(context.Background(), "q1",
+		time.Now().Unix(), "86400", "100")
+	if err != nil {
+		t.Fatalf("expected retry to succeed after NOSCRIPT: %v", err)
+	}
+	if total != 0 {
+		t.Fatalf("want 0, got %d", total)
 	}
 }

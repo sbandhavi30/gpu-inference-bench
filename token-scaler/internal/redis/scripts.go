@@ -29,8 +29,8 @@ local total_tokens = 0
 for _, val in ipairs(redis.call("HVALS", KEYS[1])) do
     total_tokens = total_tokens + tonumber(val)
 end
-if #expired_ids > 0 and redis.call("HLEN", KEYS[1]) == 0 then
-    redis.call("SET", KEYS[1], "1", "EX", tonumber(ARGV[2]))
+if redis.call("HLEN", KEYS[1]) == 0 then
+    redis.call("EXPIRE", KEYS[1], tonumber(ARGV[2]))
     redis.call("EXPIRE", KEYS[2], tonumber(ARGV[2]))
 end
 return total_tokens

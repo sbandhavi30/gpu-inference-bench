@@ -39,6 +39,9 @@ func (c *Client) Close() error {
 
 // ExecuteEvaluator runs Script B atomically. Retries once on NOSCRIPT (Redis restart).
 func (c *Client) ExecuteEvaluator(ctx context.Context, queueName string, nowEpoch int64, safetyTTL, chunkSize string) (int64, error) {
+	if c.sm == nil {
+		return 0, fmt.Errorf("scripts not loaded: call LoadScripts before ExecuteEvaluator")
+	}
 	backlogKey := "token_backlog:" + queueName
 	expiryKey := "token_expiry:" + queueName
 	keys := []string{backlogKey, expiryKey}
