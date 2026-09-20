@@ -13,27 +13,29 @@ import (
 	pb "token-scaler/internal/scaler/gen"
 )
 
-// ExternalScalerServer implements pb.ExternalScalerServer backed by Redis.
 type ExternalScalerServer struct {
 	pb.UnimplementedExternalScalerServer
-	rc        *redis.Client
-	metrics   *Metrics
-	adapter   adapter.QueueAdapter
-	chunkSize string
+	rc                *redis.Client
+	metrics           *Metrics
+	adapter           adapter.QueueAdapter
+	chunkSize         string
+	defaultJobTimeout string
 }
 
-// NewExternalScalerServer constructs an ExternalScalerServer.
 func NewExternalScalerServer(rc *redis.Client, m *Metrics, a adapter.QueueAdapter) *ExternalScalerServer {
 	return &ExternalScalerServer{rc: rc, metrics: m, adapter: a}
 }
 
-// WithChunkSize is a fluent setter for the Lua evaluator chunk size.
 func (s *ExternalScalerServer) WithChunkSize(size string) *ExternalScalerServer {
 	s.chunkSize = size
 	return s
 }
 
-// IsActive returns true when there is at least one entry in the token backlog hash.
+func (s *ExternalScalerServer) WithDefaultJobTimeout(t string) *ExternalScalerServer {
+	s.defaultJobTimeout = t
+	return s
+}
+
 func (s *ExternalScalerServer) IsActive(ctx context.Context, in *pb.ScaledObjectRef) (*pb.IsActiveResponse, error) {
 	queueName := in.ScalerMetadata["queueName"]
 	if queueName == "" {
@@ -48,7 +50,6 @@ func (s *ExternalScalerServer) IsActive(ctx context.Context, in *pb.ScaledObject
 	return &pb.IsActiveResponse{Result: n > 0}, nil
 }
 
-// StreamIsActive streams activity events via Redis Pub/Sub.
 func (s *ExternalScalerServer) StreamIsActive(in *pb.ScaledObjectRef, stream pb.ExternalScaler_StreamIsActiveServer) error {
 	queueName := in.ScalerMetadata["queueName"]
 	if queueName == "" {
@@ -72,7 +73,6 @@ func (s *ExternalScalerServer) StreamIsActive(in *pb.ScaledObjectRef, stream pb.
 	}
 }
 
-// GetMetricSpec returns the single metric spec with target size from metadata.
 func (s *ExternalScalerServer) GetMetricSpec(_ context.Context, in *pb.ScaledObjectRef) (*pb.GetMetricSpecResponse, error) {
 	raw := in.ScalerMetadata["tokensPerReplica"]
 	if raw == "" {
@@ -87,15 +87,20 @@ func (s *ExternalScalerServer) GetMetricSpec(_ context.Context, in *pb.ScaledObj
 	}, nil
 }
 
-// GetMetrics runs the token evaluator Lua script and returns the live backlog sum.
 func (s *ExternalScalerServer) GetMetrics(ctx context.Context, in *pb.GetMetricsRequest) (*pb.GetMetricsResponse, error) {
-	meta := in.ScaledObjectRef.ScalerMetadata
+	if in.GetScaledObjectRef() == nil {
+		return nil, status.Error(codes.InvalidArgument, "scaledObjectRef required")
+	}
+	meta := in.GetScaledObjectRef().GetScalerMetadata()
 	queueName := meta["queueName"]
 	if queueName == "" {
 		return nil, status.Error(codes.InvalidArgument, "queueName metadata required")
 	}
 
-	safetyTTL := "86400"
+	safetyTTL := s.defaultJobTimeout
+	if safetyTTL == "" {
+		safetyTTL = "86400"
+	}
 	if v := meta["jobTimeoutSeconds"]; v != "" {
 		safetyTTL = v
 	}
@@ -111,10 +116,11 @@ func (s *ExternalScalerServer) GetMetrics(ctx context.Context, in *pb.GetMetrics
 	}
 	s.metrics.SetHealthy("get_metrics", true)
 
-	// Fire-and-forget telemetry drift recording.
 	if s.adapter != nil {
 		go func() {
-			tel, err := s.adapter.FetchTelemetry(context.Background(), meta)
+			tCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			defer cancel()
+			tel, err := s.adapter.FetchTelemetry(tCtx, meta)
 			if err == nil {
 				s.metrics.RecordQueueDrift(queueName, tel.ApproximateDepth)
 			}

@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	goredis "github.com/redis/go-redis/v9"
 )
 
-// Client wraps go-redis with script management and NOSCRIPT retry.
 type Client struct {
 	rdb *goredis.Client
 	sm  *ScriptManager
+	mu  sync.RWMutex
 }
 
 func NewClient(addr, password string) (*Client, error) {
@@ -39,19 +40,25 @@ func (c *Client) Close() error {
 
 // ExecuteEvaluator runs Script B atomically. Retries once on NOSCRIPT (Redis restart).
 func (c *Client) ExecuteEvaluator(ctx context.Context, queueName string, nowEpoch int64, safetyTTL, chunkSize string) (int64, error) {
-	if c.sm == nil {
+	c.mu.RLock()
+	sm := c.sm
+	c.mu.RUnlock()
+	if sm == nil {
 		return 0, fmt.Errorf("scripts not loaded: call LoadScripts before ExecuteEvaluator")
 	}
 	backlogKey := "token_backlog:" + queueName
 	expiryKey := "token_expiry:" + queueName
 	keys := []string{backlogKey, expiryKey}
 
-	result, err := c.rdb.EvalSha(ctx, c.sm.EvaluatorSHA, keys, nowEpoch, safetyTTL, chunkSize).Int64()
+	result, err := c.rdb.EvalSha(ctx, sm.EvaluatorSHA, keys, nowEpoch, safetyTTL, chunkSize).Int64()
 	if err != nil && strings.Contains(err.Error(), "NOSCRIPT") {
 		if _, reloadErr := c.LoadScripts(ctx); reloadErr != nil {
 			return 0, fmt.Errorf("reload after NOSCRIPT: %w", reloadErr)
 		}
-		result, err = c.rdb.EvalSha(ctx, c.sm.EvaluatorSHA, keys, nowEpoch, safetyTTL, chunkSize).Int64()
+		c.mu.RLock()
+		sm = c.sm
+		c.mu.RUnlock()
+		result, err = c.rdb.EvalSha(ctx, sm.EvaluatorSHA, keys, nowEpoch, safetyTTL, chunkSize).Int64()
 	}
 	return result, err
 }

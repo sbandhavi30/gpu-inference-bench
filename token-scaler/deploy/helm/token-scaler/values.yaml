@@ -31,3 +31,4 @@ resources:
 
 defaultJobTimeoutSeconds: 3600
 cleanupChunkSize: 100
+queueType: ""            # Set to "sqs" or "kafka" to enable drift telemetry

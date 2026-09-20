@@ -176,3 +176,13 @@ func TestGetMetrics_MissingQueueName(t *testing.T) {
 		t.Fatalf("want InvalidArgument, got %v", err)
 	}
 }
+
+func TestGetMetrics_NilScaledObjectRef(t *testing.T) {
+	mr, _ := miniredis.Run()
+	defer mr.Close()
+	client := startTestServer(t, mr)
+	_, err := client.GetMetrics(context.Background(), &pb.GetMetricsRequest{})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("want InvalidArgument for nil ScaledObjectRef, got %v", err)
+	}
+}

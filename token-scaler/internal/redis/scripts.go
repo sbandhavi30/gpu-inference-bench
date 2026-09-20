@@ -52,6 +52,8 @@ func (c *Client) LoadScripts(ctx context.Context) (*ScriptManager, error) {
 		return nil, fmt.Errorf("load evaluator script: %w", err)
 	}
 	sm := &ScriptManager{PublisherSHA: pubSHA, EvaluatorSHA: evalSHA}
+	c.mu.Lock()
 	c.sm = sm
+	c.mu.Unlock()
 	return sm, nil
 }

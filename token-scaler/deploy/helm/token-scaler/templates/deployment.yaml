@@ -15,10 +15,20 @@ spec:
         app: {{ include "token-scaler.fullname" . }}
     spec:
       serviceAccountName: {{ include "token-scaler.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: token-scaler
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: grpc
               containerPort: {{ .Values.grpc.port }}
@@ -31,6 +41,8 @@ spec:
               value: "{{ .Values.cleanupChunkSize }}"
             - name: DEFAULT_JOB_TIMEOUT_SECONDS
               value: "{{ .Values.defaultJobTimeoutSeconds }}"
+            - name: QUEUE_TYPE
+              value: "{{ .Values.queueType }}"
             - name: GRPC_PORT
               value: "{{ .Values.grpc.port }}"
             - name: METRICS_PORT
