@@ -33,6 +33,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.22.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.27.0 // indirect
 	github.com/aws/smithy-go v1.20.2 // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/containerd/containerd v1.7.15 // indirect
@@ -75,6 +76,9 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
+	github.com/prometheus/client_model v0.5.0 // indirect
+	github.com/prometheus/common v0.48.0 // indirect
+	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/shirou/gopsutil/v3 v3.23.12 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
