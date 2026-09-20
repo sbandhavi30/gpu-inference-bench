@@ -1,0 +1,25 @@
+# This file is a reference only. Copy and customize per workload.
+# Deploy separately: kubectl apply -f this-file.yaml
+#
+# apiVersion: keda.sh/v1alpha1
+# kind: ScaledObject
+# metadata:
+#   name: vllm-batch-scaler
+# spec:
+#   scaleTargetRef:
+#     name: vllm-deployment
+#   minReplicaCount: 0
+#   maxReplicaCount: 10
+#   triggers:
+#     - type: external
+#       metadata:
+#         scalerAddress: token-scaler.<namespace>.svc:9090
+#         queueType: sqs                          # or "kafka"
+#         queueName: batch-jobs                   # Redis key suffix
+#         queueUrl: "https://sqs.us-east-1.amazonaws.com/123456789/batch-jobs"  # SQS only
+#         awsRegion: us-east-1                    # SQS only
+#         # kafkaBrokers: kafka-bootstrap.kafka.svc:9092  # Kafka only
+#         # kafkaTopic: batch-inference-jobs              # Kafka only
+#         redisAddress: redis.default.svc:6379
+#         tokensPerReplica: "500000"
+#         jobTimeoutSeconds: "3600"

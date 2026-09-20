@@ -1,0 +1,33 @@
+image:
+  repository: ghcr.io/your-org/token-scaler
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+grpc:
+  port: 9090
+
+metrics:
+  port: 8080
+
+redis:
+  address: ""          # REQUIRED: host:port
+  passwordSecretRef:
+    name: ""
+    key: ""
+
+serviceAccount:
+  create: true
+  annotations: {}      # Add eks.amazonaws.com/role-arn: <arn> for IRSA
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+defaultJobTimeoutSeconds: 3600
+cleanupChunkSize: 100

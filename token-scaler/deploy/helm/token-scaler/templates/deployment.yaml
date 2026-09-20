@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "token-scaler.fullname" . }}
+  labels:
+    app: {{ include "token-scaler.fullname" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "token-scaler.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "token-scaler.fullname" . }}
+    spec:
+      serviceAccountName: {{ include "token-scaler.serviceAccountName" . }}
+      containers:
+        - name: token-scaler
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.grpc.port }}
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+          env:
+            - name: REDIS_ADDRESS
+              value: "{{ .Values.redis.address }}"
+            - name: CLEANUP_CHUNK_SIZE
+              value: "{{ .Values.cleanupChunkSize }}"
+            - name: DEFAULT_JOB_TIMEOUT_SECONDS
+              value: "{{ .Values.defaultJobTimeoutSeconds }}"
+            - name: GRPC_PORT
+              value: "{{ .Values.grpc.port }}"
+            - name: METRICS_PORT
+              value: "{{ .Values.metrics.port }}"
+            {{- if .Values.redis.passwordSecretRef.name }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.passwordSecretRef.name }}
+                  key: {{ .Values.redis.passwordSecretRef.key }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.metrics.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            grpc:
+              port: {{ .Values.grpc.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

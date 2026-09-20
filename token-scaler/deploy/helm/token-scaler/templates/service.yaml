@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "token-scaler.fullname" . }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ include "token-scaler.fullname" . }}
+  ports:
+    - name: grpc
+      port: {{ .Values.grpc.port }}
+      targetPort: grpc
+    - name: metrics
+      port: {{ .Values.metrics.port }}
+      targetPort: metrics
