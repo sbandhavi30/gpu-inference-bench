@@ -117,6 +117,14 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	if got := getMetrics(t, client, "q1"); got != 150000 {
 		t.Fatalf("want 150000 after j2 removal, got %d", got)
 	}
+
+	// Complete remaining jobs — metric must reach zero.
+	rdb.HDel(ctx, "token_backlog:q1", "j1", "j3")
+	rdb.ZRem(ctx, "token_expiry:q1", "j1", "j3")
+
+	if got := getMetrics(t, client, "q1"); got != 0 {
+		t.Fatalf("want 0 after all jobs removed, got %d", got)
+	}
 }
 
 // TestIntegration_CleanupCeiling verifies that the Lua evaluator processes expired
@@ -190,6 +198,15 @@ func TestIntegration_HPABoundaryMath(t *testing.T) {
 
 	if got := getMetrics(t, client, "q-hpa2"); got != 560000 {
 		t.Fatalf("q-hpa2: want 560000, got %d", got)
+	}
+
+	// Boundary: one token above the 500k/replica target. The scaler must return 500001
+	// exactly so the HPA ceil-divides to 2 replicas, not 1.
+	rdb.HSet(ctx, "token_backlog:q-hpa3", "j1", "500001")
+	rdb.ZAdd(ctx, "token_expiry:q-hpa3", goredis.Z{Score: float64(future), Member: "j1"})
+
+	if got := getMetrics(t, client, "q-hpa3"); got != 500001 {
+		t.Fatalf("q-hpa3: want 500001 (one above boundary, HPA must scale to 2 replicas), got %d", got)
 	}
 }
 
