@@ -30,7 +30,7 @@
       "id": 2, "type": "stat", "title": "Request Failure Rate",
       "gridPos": { "x": 8, "y": 0, "w": 8, "h": 4 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "1 - (sum(rate(vllm:request_success_total[1m])) / (sum(rate(vllm:request_total[1m])) + 0.0001))", "legendFormat": "Failure Rate" }],
+      "targets": [{ "expr": "1 - clamp_min(sum(rate(vllm:request_success_total[1m])) / (sum(rate(vllm:e2e_request_latency_seconds_bucket{le=\"+Inf\"}[1m])) + 0.0001), 0)", "legendFormat": "Failure Rate" }],
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
       "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.001 }] } } }
     },
@@ -58,7 +58,7 @@
       "targets": [
         { "expr": "vllm:num_requests_waiting", "legendFormat": "waiting" },
         { "expr": "vllm:num_requests_running", "legendFormat": "running" },
-        { "expr": "vllm:gpu_cache_usage_perc * 100", "legendFormat": "KV cache %" }
+        { "expr": "vllm:kv_cache_usage_perc * 100", "legendFormat": "KV cache %" }
       ]
     },
     {
@@ -77,9 +77,9 @@
       "gridPos": { "x": 12, "y": 10, "w": 12, "h": 6 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "histogram_quantile(0.50, sum(rate(vllm:time_per_output_token_seconds_bucket[1m])) by (le))", "legendFormat": "p50" },
-        { "expr": "histogram_quantile(0.95, sum(rate(vllm:time_per_output_token_seconds_bucket[1m])) by (le))", "legendFormat": "p95" },
-        { "expr": "histogram_quantile(0.99, sum(rate(vllm:time_per_output_token_seconds_bucket[1m])) by (le))", "legendFormat": "p99" }
+        { "expr": "histogram_quantile(0.50, sum(rate(vllm:inter_token_latency_seconds_bucket[1m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(vllm:inter_token_latency_seconds_bucket[1m])) by (le))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(vllm:inter_token_latency_seconds_bucket[1m])) by (le))", "legendFormat": "p99" }
       ],
       "fieldConfig": { "defaults": { "unit": "s" } }
     },
@@ -115,14 +115,14 @@
       "id": 12, "type": "timeseries", "title": "NVLink TX GB/s",
       "gridPos": { "x": 0, "y": 28, "w": 12, "h": 6 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "rate(DCGM_FI_PROF_NVLINK_TX_BYTES[1m]) / 1e9", "legendFormat": "GPU {{gpu}} TX" }],
+      "targets": [{ "expr": "DCGM_FI_PROF_NVLINK_TX_BYTES / 1e9", "legendFormat": "GPU {{gpu}} TX" }],
       "fieldConfig": { "defaults": { "unit": "GBs" } }
     },
     {
       "id": 13, "type": "timeseries", "title": "NVLink RX GB/s",
       "gridPos": { "x": 12, "y": 28, "w": 12, "h": 6 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "expr": "rate(DCGM_FI_PROF_NVLINK_RX_BYTES[1m]) / 1e9", "legendFormat": "GPU {{gpu}} RX" }],
+      "targets": [{ "expr": "DCGM_FI_PROF_NVLINK_RX_BYTES / 1e9", "legendFormat": "GPU {{gpu}} RX" }],
       "fieldConfig": { "defaults": { "unit": "GBs" } }
     },
     {

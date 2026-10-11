@@ -32,5 +32,5 @@ DCGM_FI_PROF_PCIE_TX_BYTES,      counter, PCIe transmit bytes
 DCGM_FI_PROF_PCIE_RX_BYTES,      counter, PCIe receive bytes
 #
 # NVLink — H100 SXM specific, require SYS_ADMIN
-DCGM_FI_PROF_NVLINK_TX_BYTES, counter, NVLink transmit bytes
-DCGM_FI_PROF_NVLINK_RX_BYTES, counter, NVLink receive bytes
+DCGM_FI_PROF_NVLINK_TX_BYTES, gauge, NVLink transmit bytes/sec
+DCGM_FI_PROF_NVLINK_RX_BYTES, gauge, NVLink receive bytes/sec

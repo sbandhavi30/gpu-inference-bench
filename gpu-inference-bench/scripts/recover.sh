@@ -11,8 +11,8 @@ curl -sf -X POST \
   -H "Content-Type: application/json" \
   -u "admin:${GRAFANA_ADMIN_PASSWORD}" \
   "http://localhost:${GRAFANA_PORT}/api/annotations" \
-  -d "{\"text\":\"T_recover: docker compose restart vllm\",\"tags\":[\"experiment\",\"recover\"],\"time\":$((TIMESTAMP * 1000))}" \
-  > /dev/null && echo "[recover] Grafana annotation posted"
+  -d "{\"text\":\"T_recover: docker compose restart vllm\",\"tags\":[\"experiment\",\"recover\"],\"time\":$((TIMESTAMP * 1000)),\"dashboardUID\":\"gpu-inference-bench\"}" \
+  > /dev/null && echo "[recover] Grafana annotation posted" || echo "[recover] Grafana annotation failed (continuing)"
 
 echo "[recover] Restarting vLLM service..."
 cd "$SCRIPT_DIR/.."

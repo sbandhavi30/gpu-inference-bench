@@ -16,19 +16,29 @@ curl -sf -X POST \
   -H "Content-Type: application/json" \
   -u "admin:${GRAFANA_ADMIN_PASSWORD}" \
   "http://localhost:${GRAFANA_PORT}/api/annotations" \
-  -d "{\"text\":\"T_inject: TP rank 1 SIGKILL\",\"tags\":[\"experiment\",\"inject\"],\"time\":$((TIMESTAMP * 1000))}" \
+  -d "{\"text\":\"T_inject: TP rank 1 SIGKILL\",\"tags\":[\"experiment\",\"inject\"],\"time\":$((TIMESTAMP * 1000)),\"dashboardUID\":\"gpu-inference-bench\"}" \
   > /dev/null && echo "[inject] Grafana annotation posted"
 
-# vLLM TP workers are spawned with --local-rank=N argument
-echo "[inject] Searching for GPU rank 1 worker..."
-RANK1_PID=$(docker exec "$VLLM_CONTAINER" pgrep -f -- "--local-rank=1" 2>/dev/null | head -1 || true)
+# Search for rank 1 worker via /proc (no procps required)
+echo "[inject] Searching for GPU rank 1 worker via /proc..."
+RANK1_PID=$(docker exec "$VLLM_CONTAINER" bash -c \
+  'for f in /proc/[0-9]*/cmdline; do
+     pid="${f%/cmdline}"; pid="${pid#/proc/}"
+     cmdline=$(tr "\0" " " < "$f" 2>/dev/null) || continue
+     case "$cmdline" in *"local-rank=1"*|*"local_rank=1"*) echo "$pid"; break;; esac
+   done' 2>/dev/null || true)
 
 if [ -n "$RANK1_PID" ]; then
     echo "[inject] Found rank 1 PID: $RANK1_PID — sending SIGKILL"
     docker exec "$VLLM_CONTAINER" kill -9 "$RANK1_PID"
 else
-    echo "[inject] Rank 1 not found by --local-rank=1. Falling back to main process."
-    MAIN_PID=$(docker exec "$VLLM_CONTAINER" pgrep -f "vllm.entrypoints" 2>/dev/null | head -1 || true)
+    echo "[inject] Rank 1 not found by cmdline. Falling back to main vLLM process."
+    MAIN_PID=$(docker exec "$VLLM_CONTAINER" bash -c \
+      'for f in /proc/[0-9]*/cmdline; do
+         pid="${f%/cmdline}"; pid="${pid#/proc/}"
+         cmdline=$(tr "\0" " " < "$f" 2>/dev/null) || continue
+         case "$cmdline" in *"vllm.entrypoints"*) echo "$pid"; break;; esac
+       done' 2>/dev/null || true)
     if [ -n "$MAIN_PID" ]; then
         echo "[inject] Killing vLLM main PID: $MAIN_PID"
         docker exec "$VLLM_CONTAINER" kill -9 "$MAIN_PID"

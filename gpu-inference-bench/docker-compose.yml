@@ -26,7 +26,6 @@ services:
       --tensor-parallel-size 4
       --max-model-len 8192
       --gpu-memory-utilization 0.90
-      --enable-metrics
     ports:
       - "${VLLM_PORT}:8000"
     volumes:
@@ -49,7 +48,7 @@ services:
       - SYS_ADMIN
     volumes:
       - ./dcgm/metrics.csv:/etc/dcgm-exporter/custom-counters.csv
-    command: ["-f", "/etc/dcgm-exporter/custom-counters.csv", "-d", "f"]
+    command: ["-f", "/etc/dcgm-exporter/custom-counters.csv", "-d", "f", "--collect-interval", "5000"]
     ports:
       - "${DCGM_PORT}:9400"
     restart: unless-stopped
