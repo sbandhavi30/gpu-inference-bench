@@ -1,0 +1,110 @@
+version: "3.9"
+
+x-gpu-deploy: &gpu-deploy
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+
+volumes:
+  huggingface_cache:
+  prometheus_data:
+  grafana_data:
+
+services:
+  vllm:
+    image: vllm/vllm-openai:latest
+    <<: *gpu-deploy
+    environment:
+      - VLLM_BLOCKSCALE_FP8_GEMM_FLASHINFER=0
+      - HF_TOKEN=${HF_TOKEN}
+    command: >
+      --model ${MODEL}
+      --tensor-parallel-size 4
+      --max-model-len 8192
+      --gpu-memory-utilization 0.90
+      --enable-metrics
+    ports:
+      - "${VLLM_PORT}:8000"
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 600s
+
+  dcgm-exporter:
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04
+    <<: *gpu-deploy
+    cap_add:
+      - SYS_ADMIN
+    volumes:
+      - ./dcgm/metrics.csv:/etc/dcgm-exporter/custom-counters.csv
+    command: ["-f", "/etc/dcgm-exporter/custom-counters.csv", "-d", "f"]
+    ports:
+      - "${DCGM_PORT}:9400"
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    command:
+      - "--path.rootfs=/host"
+    pid: host
+    volumes:
+      - "/:/host:ro,rslave"
+    ports:
+      - "${NODE_EXPORTER_PORT}:9100"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=24h"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    depends_on: [vllm, dcgm-exporter, node-exporter]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    depends_on: [prometheus]
+    restart: unless-stopped
+
+  locust:
+    build: ./locust
+    command: >
+      -f /mnt/locust/locustfile.py
+      --host http://vllm:8000
+      --web-port 8089
+    volumes:
+      - ./locust:/mnt/locust
+    ports:
+      - "${LOCUST_PORT}:8089"
+    depends_on: [vllm]
+    restart: unless-stopped
