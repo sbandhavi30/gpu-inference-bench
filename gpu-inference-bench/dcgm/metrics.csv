@@ -1,0 +1,36 @@
+# DCGM custom counters — GPU inference benchmarking
+# Format: FIELD_NAME, prometheus_type, help_text
+#
+# Clocks
+DCGM_FI_DEV_SM_CLOCK,  gauge, SM clock frequency (MHz)
+DCGM_FI_DEV_MEM_CLOCK, gauge, Memory clock frequency (MHz)
+#
+# Utilization
+DCGM_FI_DEV_GPU_UTIL,      gauge, GPU SM utilization (percent)
+DCGM_FI_DEV_MEM_COPY_UTIL, gauge, GPU memory copy engine utilization (percent)
+#
+# Framebuffer memory
+DCGM_FI_DEV_FB_FREE, gauge, Framebuffer memory free (MiB)
+DCGM_FI_DEV_FB_USED, gauge, Framebuffer memory used (MiB)
+#
+# Power and thermals
+DCGM_FI_DEV_POWER_USAGE,     gauge,   GPU power draw (W)
+DCGM_FI_DEV_GPU_TEMP,        gauge,   GPU temperature (C)
+DCGM_FI_DEV_POWER_VIOLATION, counter, Cumulative power throttle duration (us)
+#
+# ECC errors
+DCGM_FI_DEV_ECC_SBE_VOL_TOTAL, counter, ECC single-bit errors (volatile total)
+DCGM_FI_DEV_ECC_DBE_VOL_TOTAL, counter, ECC double-bit errors (volatile total)
+#
+# Profiling — require SYS_ADMIN capability on dcgm-exporter container
+DCGM_FI_PROF_GR_ENGINE_ACTIVE,   gauge, Fraction of time graphics engine active (0-1)
+DCGM_FI_PROF_SM_ACTIVE,          gauge, Fraction of cycles at least one thread active (0-1)
+DCGM_FI_PROF_SM_OCCUPANCY,       gauge, Fraction of warps resident per SM (0-1)
+DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, gauge, Fraction of cycles tensor core active (0-1)
+DCGM_FI_PROF_DRAM_ACTIVE,        gauge, Fraction of cycles DRAM interface active (0-1)
+DCGM_FI_PROF_PCIE_TX_BYTES,      counter, PCIe transmit bytes
+DCGM_FI_PROF_PCIE_RX_BYTES,      counter, PCIe receive bytes
+#
+# NVLink — H100 SXM specific, require SYS_ADMIN
+DCGM_FI_PROF_NVLINK_TX_BYTES, counter, NVLink transmit bytes
+DCGM_FI_PROF_NVLINK_RX_BYTES, counter, NVLink receive bytes
