@@ -1,0 +1,34 @@
+groups:
+  - name: inference_slo
+    interval: 5s
+    rules:
+      - alert: P99TTFTBreached
+        expr: >
+          histogram_quantile(0.99,
+            sum(rate(vllm:time_to_first_token_seconds_bucket[1m])) by (le)
+          ) > 2.0
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "p99 TTFT > 2s SLO breached"
+          description: "p99 TTFT is {{ $value | humanizeDuration }}"
+
+      - alert: VLLMDown
+        expr: up{job="vllm"} == 0
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "vLLM is unreachable"
+
+      - alert: GPUSMUtilSuddenDrop
+        expr: >
+          avg(DCGM_FI_DEV_GPU_UTIL) < 10
+          and on()
+          avg(DCGM_FI_DEV_GPU_UTIL offset 1m) > 50
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "GPU SM utilization sudden drop — possible TP rank failure"
