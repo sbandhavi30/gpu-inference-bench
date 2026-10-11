@@ -1,0 +1,158 @@
+{
+  "uid": "gpu-inference-bench",
+  "title": "GPU Inference Benchmark",
+  "schemaVersion": 39,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": false,
+        "iconColor": "red",
+        "name": "Experiment Events",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "p99 TTFT",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "histogram_quantile(0.99, sum(rate(vllm:time_to_first_token_seconds_bucket[1m])) by (le))", "legendFormat": "p99 TTFT" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "s", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1.5 }, { "color": "red", "value": 2.0 }] } } }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Request Failure Rate",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "1 - (sum(rate(vllm:request_success_total[1m])) / (sum(rate(vllm:request_total[1m])) + 0.0001))", "legendFormat": "Failure Rate" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.001 }] } } }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Active Requests",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "vllm:num_requests_running", "legendFormat": "running" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" }
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Throughput — Tokens/sec",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum(rate(vllm:generation_tokens_total[1m]))", "legendFormat": "output tok/s" },
+        { "expr": "sum(rate(vllm:prompt_tokens_total[1m]))", "legendFormat": "prompt tok/s" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none" } }
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Queue Depth + KV Cache %",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "vllm:num_requests_waiting", "legendFormat": "waiting" },
+        { "expr": "vllm:num_requests_running", "legendFormat": "running" },
+        { "expr": "vllm:gpu_cache_usage_perc * 100", "legendFormat": "KV cache %" }
+      ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "TTFT Percentiles",
+      "gridPos": { "x": 0, "y": 10, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(vllm:time_to_first_token_seconds_bucket[1m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(vllm:time_to_first_token_seconds_bucket[1m])) by (le))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(vllm:time_to_first_token_seconds_bucket[1m])) by (le))", "legendFormat": "p99" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "TPOT Percentiles",
+      "gridPos": { "x": 12, "y": 10, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(vllm:time_per_output_token_seconds_bucket[1m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(vllm:time_per_output_token_seconds_bucket[1m])) by (le))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(vllm:time_per_output_token_seconds_bucket[1m])) by (le))", "legendFormat": "p99" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "GPU SM Utilization per GPU (%)",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "DCGM_FI_DEV_GPU_UTIL", "legendFormat": "GPU {{gpu}}" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 } }
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "Tensor Core Active (%)",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "DCGM_FI_PROF_PIPE_TENSOR_ACTIVE * 100", "legendFormat": "GPU {{gpu}}" }],
+      "fieldConfig": { "defaults": { "unit": "percent" } }
+    },
+    {
+      "id": 10, "type": "timeseries", "title": "VRAM Used (GiB)",
+      "gridPos": { "x": 0, "y": 22, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "DCGM_FI_DEV_FB_USED / 1024", "legendFormat": "GPU {{gpu}}" }],
+      "fieldConfig": { "defaults": { "unit": "decgbytes", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 75 }] } } }
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "Memory Bandwidth Active (%)",
+      "gridPos": { "x": 12, "y": 22, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "DCGM_FI_PROF_DRAM_ACTIVE * 100", "legendFormat": "GPU {{gpu}}" }],
+      "fieldConfig": { "defaults": { "unit": "percent" } }
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "NVLink TX GB/s",
+      "gridPos": { "x": 0, "y": 28, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "rate(DCGM_FI_PROF_NVLINK_TX_BYTES[1m]) / 1e9", "legendFormat": "GPU {{gpu}} TX" }],
+      "fieldConfig": { "defaults": { "unit": "GBs" } }
+    },
+    {
+      "id": 13, "type": "timeseries", "title": "NVLink RX GB/s",
+      "gridPos": { "x": 12, "y": 28, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "rate(DCGM_FI_PROF_NVLINK_RX_BYTES[1m]) / 1e9", "legendFormat": "GPU {{gpu}} RX" }],
+      "fieldConfig": { "defaults": { "unit": "GBs" } }
+    },
+    {
+      "id": 14, "type": "stat", "title": "ECC Errors (total)",
+      "gridPos": { "x": 0, "y": 34, "w": 8, "h": 3 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum(DCGM_FI_DEV_ECC_SBE_VOL_TOTAL + DCGM_FI_DEV_ECC_DBE_VOL_TOTAL)", "legendFormat": "ECC Errors" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } }
+    },
+    {
+      "id": 15, "type": "timeseries", "title": "GPU Power Draw (W)",
+      "gridPos": { "x": 0, "y": 37, "w": 8, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "DCGM_FI_DEV_POWER_USAGE", "legendFormat": "GPU {{gpu}}" }],
+      "fieldConfig": { "defaults": { "unit": "watt", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 680 }] } } }
+    },
+    {
+      "id": 16, "type": "timeseries", "title": "GPU Temperature (°C)",
+      "gridPos": { "x": 8, "y": 37, "w": 8, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "DCGM_FI_DEV_GPU_TEMP", "legendFormat": "GPU {{gpu}}" }],
+      "fieldConfig": { "defaults": { "unit": "celsius", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 75 }, { "color": "red", "value": 83 }] } } }
+    },
+    {
+      "id": 17, "type": "timeseries", "title": "SM Clock (MHz)",
+      "gridPos": { "x": 16, "y": 37, "w": 8, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "DCGM_FI_DEV_SM_CLOCK", "legendFormat": "GPU {{gpu}}" }],
+      "fieldConfig": { "defaults": { "unit": "none", "custom": { "displayName": "MHz" } } }
+    }
+  ]
+}
